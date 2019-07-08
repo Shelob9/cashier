@@ -18,7 +18,7 @@ The minimum Laravel version in Cashier v10 is now v5.8.
 
 PR: https://github.com/laravel/cashier/pull/643
 
-One of the most important changes in Cashier v10 is that from now on, the API version is fixed from Cashier. This is because in the past, people would upgrade to the latest Stripe API versions but Cashier might not have been updated yet for it. By controlling the API version ourselves, we can prevent bugs more easily and make updates to newer API versions more easily.
+One of the most important changes in Cashier v10 is that from now on, the Stripe API version is fixed from Cashier. This is because in the past, people would upgrade to the latest Stripe API versions but Cashier might not have been updated yet for it. By controlling the API version ourselves, we can prevent bugs more easily and make updates to newer API versions more easily.
 
 ### Publishable Key
 
@@ -30,11 +30,11 @@ The `STRIPE_KEY` is now always the publishable key and the `STRIPE_SECRET` the s
 
 PR: https://github.com/laravel/cashier/pull/667
 
-These changes bring support for the new payment intents api to charges and subscriptions. As there are quite some breaking changes here let's go over the most prominent ones below.
+These changes bring support for the new Payment Intents API to charges and subscriptions. As there are quite some breaking changes here let's go over the most prominent ones below.
 
 #### Exception Throwing
 
-Any payment action will now throw an exception when a payment either fails or when the payment requires a secondary action in order to be completed. This goes for single charges, invoicing customers directly, subscribing to a new plan or swapping plans. Developers can catch these exceptions and decide for themselves how to handle these by either letting Stripe handle everything for them (to be set up in the Stripe dashboard) or use the custom built-in solution which will be added in the next commit.
+Any payment action will now throw an exception when a payment either fails or when the payment requires a secondary action in order to be completed. This goes for single charges, invoicing customers directly, subscribing to a new plan or swapping plans. You can catch these exceptions and decide for themselves how to handle these by either letting Stripe handle everything for them (to be set up in the Stripe dashboard) or use the custom built-in solution which will be added in the next commit.
 
 An example of how to implement this could be:
 
@@ -50,7 +50,9 @@ try {
 
 The above `IncompletePayment` exception could be an instance of a `PaymentFailure` when a card failure occured or of a `PaymentActionRequired` when a secondary action is needed to complete the payment. In the above example, the user is redirected to a new dedicated payment page which ships with Cashier. Here, the user can provide its payment details again and fulfill the secondary action (like 3D Secure). After that they're redirected to the url you've provided in the `redirect` parameter.
 
-Exceptions can be thrown for the following methods: `charge`, `invoiceFor`, `invoice` on the `Billable` user, on the `create` method when creating a new subscription or on the `swap` method on a subscription when swapping subscription. Technically, on every of these methods such an exception can occur and you should handle this gracefully in your app. The provided payment page by Cashier offers an easy transition to the new SCA requirements in Stripe but you may also choose to catch the exceptions and then let Stripe handle the rest through its settings (by emailing your customers).
+Exceptions can be thrown for the following methods: `charge`, `invoiceFor`, `invoice` on the `Billable` user, on the `create` method when creating a new subscription or on the `swap` method on a subscription when swapping subscription. Technically, on every of these methods such an exception can occur and you should handle this gracefully in your app. The provided payment page by Cashier offers an easy transition to the new SCA requirements but you may also choose to catch the exceptions and then let Stripe handle the rest through its settings (by emailing your customers).
+
+It should also be noted that previously, the `create` method on the subscription builder would immediately cancel any subscription with an `incomplete` or `incomplete_expired` status and throw a `SubscriptionCreationFailed` exception. This has now been replaced with the behavior described above and the `SubscriptionCreationFailed` has been removed.
 
 #### New `status` Column
 
@@ -64,7 +66,7 @@ Schema::table('subscriptions', function (Blueprint $table) {
 
 #### Confirmation Email
 
-These changes add a built-in way for Cashier to send reminder emails to the customer when payment confirmation is needed for off-session. For example, when a subscription renews. It can be enabled by setting an env variable `CASHIER_PAYMENT_EMAILS=true`. By default these emails are disabled. Note that you'll need to setup a working email driver for this.
+These changes add a built-in way for Cashier to send reminder emails to the customer when off-session payment confirmation is needed, for example, when a subscription renews. It can be enabled by setting an env variable `CASHIER_PAYMENT_EMAILS=true`. By default these emails are disabled. Note that you'll need to setup a working email driver for this.
 
 One limitation of this addition is that emails will be sent out even when customers are on-session during a payment that requires an extra action. This is because there's no way to know for Stripe that the payment was done on- or off-session. But a customer will never be charged twice and will simply see a "Payment Successful" message if they visit the payment page again.
 
@@ -74,7 +76,7 @@ These notes involve changes made to the `charge` method on the `Billable` trait.
 
 #### Payment Method
 
-The `charge` method now accepts a payment method instead of a token. Developers will need to update their JS integration to retrieve a payment method id instead of a source token. These changes were done because this is now the recommended way by Stripe to work with payment methods. [More info about that can be found here](https://stripe.com/docs/payments/payment-methods#transitioning). 
+The `charge` method now accepts a payment method instead of a token. You will need to update your JS integration to retrieve a payment method id instead of a source token. These changes were done because this is now the recommended way by Stripe to work with payments. [More info about that can be found here](https://stripe.com/docs/payments/payment-methods#transitioning). 
 
 In an upcoming update all card methods as well as the `create` method on the subscription builder will be updated as well.
 
@@ -86,11 +88,11 @@ Another minor change is that if a payment method was provided but the billable u
 
 ### Webhooks
 
-#### Required
+#### Webhooks Are Now Required
 
 With the latest updates in v10 and the way Stripe has shifted to an asynchronous workflow with payment intents, webhooks are now an essential part of this workflow and need to be enabled in order for your app to properly update subscriptions when handling payments. [You can read more about enabling webhooks here](https://laravel.com/docs/billing#handling-stripe-webhooks).
 
-#### Auto-loaded
+#### Webhooks Are Now Auto-loaded
 
 PR: https://github.com/laravel/cashier/pull/672
 
@@ -100,7 +102,7 @@ The webhooks route is now also automatically loaded for you and doesn't needs to
 
 PR: https://github.com/laravel/cashier/pull/663
 
-Just like in other Laravel packages, Cashier's migrations now ship with its package. They're automatically registered and will be executed when you run `php artisan migrate`. People from previous Cashier versions who already have migrations run would want to disable this by adding `Cashier::ignoreMigrations();` to the `boot` method in their `AppServiceProvider`.
+Just like in other Laravel packages, Cashier's migrations now ship with its package. They're automatically registered and will be executed when you run `php artisan migrate`. If you already have these migrations run you would want to disable this by adding `Cashier::ignoreMigrations();` to the `boot` method in your `AppServiceProvider`.
 
 ### Config File
 
@@ -114,13 +116,13 @@ The `STRIPE_MODEL` env variable has been renamed to `CASHIER_MODEL`.
 
 PR: https://github.com/laravel/cashier/pull/685
 
-Internals in Cashier on how to properly format money values have been refactored. Cashier now makes use of the `moneyphp/money` library to format money values. Because of this refactor, the `useCurrencySymbol`, `usesCurrencySymbol`, `guessCurrencySymbol` methods, and the `$symbol` parameter on the `useCurrency` have been dropped.
+Internals in Cashier on how to properly format money values have been refactored. Cashier now makes use of the `moneyphp/money` library to format these values. Because of this refactor, the `useCurrencySymbol`, `usesCurrencySymbol`, `guessCurrencySymbol` methods, and the `$symbol` parameter on the `useCurrency` have been removed.
 
 The starting balance is now no longer subtracted from the subtotal of an invoice. 
 
-All `raw` methods on the `Invoice` object now return integers instead of floats. These integers represent money values from cents.
+All `raw` methods on the `Invoice` object now return integers instead of floats. These integers represent money values starting from cents.
 
-The invoice PDF got a new layout. See an example in the above pull request.
+The invoice PDF also got a new layout. See an example in the above pull request.
 
 ### Subscriptions
 
@@ -128,7 +130,7 @@ The invoice PDF got a new layout. See an example in the above pull request.
 
 PR: https://github.com/laravel/cashier/pull/620
 
-The `swap` method now accepts a new `$options` argument to allow to easily set extra options on the subscription.
+The `swap` method now accepts a new `$options` argument to easily set extra options on the subscription.
 
 ### Customers
 
@@ -138,10 +140,10 @@ The following methods now require that the `Billable` user is a customer registe
 
 ### Carbon
 
-PR Carbon 1: https://github.com/laravel/cashier/pull/694
-PR Carbon 2: https://github.com/laravel/cashier/pull/607
+PR Carbon v1: https://github.com/laravel/cashier/pull/694
+PR Carbon v2: https://github.com/laravel/cashier/pull/607
 
-Support for Carbon 1 was dropped because it's not supported anymore. Support for Carbon 2 was added.
+Support for Carbon v1 was dropped because it's not supported anymore. Support for Carbon v2 was added.
 
 
 ## Upgrading To 9.3 From 9.2

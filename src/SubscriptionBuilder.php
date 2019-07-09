@@ -260,7 +260,8 @@ class SubscriptionBuilder
             'coupon' => $this->coupon,
             'metadata' => $this->metadata,
             'plan' => $this->plan,
-            'quantity' => $this->quantity,
+            //@see https://github.com/laravel/cashier/issues/555#issuecomment-506063982
+            //'quantity' => $this->quantity,
             'tax_percent' => $this->getTaxPercentageForPayload(),
             'trial_end' => $this->getTrialEndForPayload(),
         ]);
